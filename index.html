@@ -22,7 +22,7 @@
     <ul class="collapsible" data-collapsible="accordion" id="torrentList"></ul>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/0.107.10/webtorrent.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
 <script>
   // WebTorrent client in global scope
   const client = new WebTorrent();
@@ -101,7 +101,13 @@
         const fileLink = document.createElement('a');
         const fileProgress = (file.progress * 100).toFixed(2);
 
-        fileLink.href = file.blobURL;
+        file.getBlobURL(function (err, url) {
+            if (err) {
+                return console.log(err.message);
+            }
+            console.log('File done.');
+            fileLink.href = url;
+        })
         fileLink.download = file.name;
         fileLink.textContent = `${file.name} (${fileProgress}% downloaded)`;
         fileListElement.appendChild(fileLink);
