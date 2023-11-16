@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <title>WebTorrent Downloader</title>
+</head>
+<body>
+
+<div class="container">
+    <h4>WebTorrent Downloader</h4>
+
+    <div class="input-field">
+        <input id="torrentLink" type="text"/>
+        <label for="torrentLink">Torrent Link</label>
+    </div>
+
+    <button class="btn waves-effect waves-light" onclick="addTorrent()">Add Torrent</button>
+
+    <ul class="collapsible" data-collapsible="accordion" id="torrentList"></ul>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/0.107.10/webtorrent.min.js"></script>
+<script>
+  // WebTorrent client in global scope
+  const client = new WebTorrent();
+
+  function addTorrent() {
+    const torrentLink = document.getElementById('torrentLink').value;
+
+    if (torrentLink.trim() === '') {
+      // If the input is empty, do nothing
+      return;
+    }
+
+    // Create a unique ID for the torrent element
+    const torrentId = `torrent-${Date.now()}`;
+
+    // Create a new collapsible item for the torrent
+    const torrentListItem = document.createElement('li');
+    torrentListItem.innerHTML = `
+      <div class="collapsible-header">${torrentLink}</div>
+      <div class="collapsible-body">
+        <div id="${torrentId}-status"></div>
+        <div id="${torrentId}-fileList"></div>
+      </div>
+    `;
+
+    // Add the torrent element to the list
+    const torrentList = document.getElementById('torrentList');
+    torrentList.appendChild(torrentListItem);
+
+    // Add the torrent and start downloading
+    const torrent = client.add(torrentLink, { path: `./downloads/${torrentId}` });
+
+    // Display initial status and file list
+    updateStatus();
+    updateFileList();
+
+    // Update status as the download progresses
+    torrent.on('download', () => {
+      updateStatus();
+      updateFileList();
+    });
+
+    // Handle when the download is complete
+    torrent.on('done', () => {
+      updateStatus();
+      updateFileList();
+    });
+
+    // Handle errors
+    torrent.on('error', err => {
+      document.getElementById(`${torrentId}-status`).innerHTML += `<p>Error: ${err}</p>`;
+    });
+
+    function updateStatus() {
+      const progress = (torrent.progress * 100).toFixed(2);
+      const downloadSpeed = prettyBytes(torrent.downloadSpeed);
+      const uploadSpeed = prettyBytes(torrent.uploadSpeed);
+      const numPeers = torrent.numPeers;
+      const numSeeders = torrent.numSeeders;
+
+      document.getElementById(`${torrentId}-status`).innerHTML = `
+        <p>Downloading: ${torrent.name}</p>
+        <p>Progress: ${progress}%</p>
+        <p>Download Speed: ${downloadSpeed}/s</p>
+        <p>Upload Speed: ${uploadSpeed}/s</p>
+        <p>Peers: ${numPeers}</p>
+        <p>Seeders: ${numSeeders}</p>
+      `;
+    }
+
+    function updateFileList() {
+      const fileListElement = document.getElementById(`${torrentId}-fileList`);
+      fileListElement.innerHTML = '<p>Files:</p>';
+
+      torrent.files.forEach(file => {
+        const fileLink = document.createElement('a');
+        const fileProgress = (file.progress * 100).toFixed(2);
+
+        fileLink.href = file.blobURL;
+        fileLink.download = file.name;
+        fileLink.textContent = `${file.name} (${fileProgress}% downloaded)`;
+        fileListElement.appendChild(fileLink);
+        fileListElement.appendChild(document.createElement('br'));
+      });
+    }
+
+    // Helper function to format bytes
+    function prettyBytes(num) {
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let i = 0;
+      while (num >= 1024 && i < units.length - 1) {
+        num /= 1024;
+        i++;
+      }
+      return num.toFixed(2) + ' ' + units[i];
+    }
+  }
+
+  // Initialize collapsible elements
+  document.addEventListener('DOMContentLoaded', function() {
+    var elems = document.querySelectorAll('.collapsible');
+    var instances = M.Collapsible.init(elems);
+  });
+
+</script>
+
+</body>
+</html>
